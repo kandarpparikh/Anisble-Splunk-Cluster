@@ -25,4 +25,4 @@
     - pause:
         minutes: 1
   
-- import_playbook: new.yml
+- import_playbook: Configure-splunk.yml
