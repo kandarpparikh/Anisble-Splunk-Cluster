@@ -1,0 +1,28 @@
+---
+- name: Demo EC2 instance
+  hosts: localhost
+  connection: local
+  become: yes
+  become_user: root
+  become_method: sudo
+
+  vars:
+      region: us-east-1
+      instance_type: t2.micro
+      ami: ami-0f9cf087c1f27d9b1
+      keypair: crest-key
+      subnet: subnet-81eb68af
+      access_key_ID: <ACCESS KEY HERE>
+      secret_key_ID: <SECRET KEY HERE>
+      indexer_count: "{{ icount }}"
+      searchhead_count: "{{ scount }}"
+
+  roles:
+    - clustermaster
+    - indexer
+    - searchhead
+  tasks:
+    - pause:
+        minutes: 1
+  
+- import_playbook: new.yml

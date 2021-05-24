@@ -1,0 +1,51 @@
+---
+- name: refresh cache
+  hosts: localhost
+  tasks:
+    - name: command to refresh cache
+      shell: /etc/ansible/ec2.py --refresh-cache
+    - name: Refresh in-memory EC2 cache
+      meta: refresh_inventory
+
+- hosts: tag_Group_clusterMaterGroup
+  user: ubuntu
+  gather_facts: no
+  become: yes
+  become_method: sudo
+  tasks:
+
+    - name: Master node
+      shell: /opt/splunk/bin/splunk edit cluster-config -mode master -replication_factor 3 -search_factor 2 -cluster_label IndexerCluster -secret kandarp -auth admin:changeme ; mkdir /opt/splunk/etc/licenses/kp_enterprise
+                    ; cd /opt/splunk/etc/licenses/kp_enterprise
+                    ; wget https://s3.amazonaws.com/splunk-license-kandarp/kandarp_Splunk.License
+                    ; /opt/splunk/bin/splunk add licenses kandarp_Splunk.License -auth admin:changeme ; /opt/splunk/bin/splunk restart
+
+- hosts: tag_Group_indexerGroup
+  user: ubuntu
+  become: yes
+  become_method: sudo
+  tasks:
+    - pause: 
+        minutes: 0.2
+    - set_fact:
+        temp: "{{ hostvars[inventory_hostname]['groups']['tag_Group_clusterMaterGroup'] | to_json }}"
+
+    - name: Indexer node
+      shell: /opt/splunk/bin/splunk edit cluster-config -mode slave -master_uri https://{{ temp }}:8089 -replication_port 9887 -secret kandarp -auth admin:changeme ; /opt/splunk/bin/splunk restart
+      ignore_errors: yes
+
+    - name: add license slaves
+      shell: cd /opt/splunk/bin/ ; ./splunk edit licenser-localslave -master_uri https://{{ temp }}:8089 -auth admin:changeme ; /opt/splunk/bin/splunk restart
+
+- hosts: tag_Group_searchheadGroup
+  user: ubuntu
+  gather_facts: no
+  become: yes
+  become_method: sudo
+  tasks:
+    - set_fact:
+        temp: "{{ hostvars[inventory_hostname]['groups']['tag_Group_clusterMaterGroup'] | to_json }}"
+    - name: SearchHead node
+      shell: /opt/splunk/bin/splunk edit cluster-config -mode searchhead -master_uri https://{{ temp }}:8089 -replication_port 9887 -secret kandarp -auth admin:changeme ; /opt/splunk/bin/splunk restart
+
+
